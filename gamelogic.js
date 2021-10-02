@@ -4,7 +4,7 @@ var io
 var socket
 
 var activeSocketIDs = {} //All active socketIDs and the assoc. username
-var gameRooms = {} //Format: gameRooms[gameID] = [generatedBoard, solvedBoard, timeInSeconds]
+var gameRooms = {} //Format: gameRooms[gameID] = [generatedBoard, solvedBoard, timeInSeconds, difficulty]
 var waitingForRematch = {} //Format: waiting[gameID] = [socket in room that has requested rematch first]
  
 const connection = (clientIO, clientSocket) => {
@@ -34,7 +34,7 @@ const connection = (clientIO, clientSocket) => {
 function createNewGame(data) {
     //Generate a board and set the time
     var [board, solution]= generator.generateBoard(data.difficulty)
-    gameRooms[data.gameID] = [board, solution, data.timeInSeconds]
+    gameRooms[data.gameID] = [board, solution, data.timeInSeconds, data.difficulty]
 
     // Return the room's ID (gameID) and the socketID to the client
     this.emit('gameWasCreated', {gameID: data.gameID, socketID: this.id});
@@ -44,7 +44,8 @@ function createNewGame(data) {
 }
 
 function playerJoinsGame(data){
-    var gameRoom = io.sockets.adapter.rooms[data.gameID] //gameRoom with name "gameID"
+    console.log(`Player ${this.id} joins with `, data)
+    var gameRoom = io.sockets.adapter.rooms[data.gameID]
 
     if(gameRoom=== undefined){
         this.emit('joinAttempt' , "undefined");
@@ -52,8 +53,7 @@ function playerJoinsGame(data){
     }
     else if(gameRoom.length <2){
         this.join(data.gameID) //Creator joining twice is not a problem
-        activeSocketIDs[socket.id] = data.username 
-
+        activeSocketIDs[this.id] = data.username
         if(gameRoom.length===2){//Game full after joining
             io.to(data.gameID).emit('playerTwoJoined', 
             {username1: activeSocketIDs[Object.getOwnPropertyNames(gameRoom.sockets)[0]], 
@@ -61,7 +61,8 @@ function playerJoinsGame(data){
                 creatorIsPlayerA: (Math.random() < 0.5), //Chooses the starting player at random
                 generatedBoard: gameRooms[data.gameID][0],
                 generatedSolution: gameRooms[data.gameID][1],
-                timeInSeconds: gameRooms[data.gameID][2]
+                timeInSeconds: gameRooms[data.gameID][2],
+                difficulty: gameRooms[data.gameID][3]
             })
         }
 
@@ -86,8 +87,10 @@ function onDisconnecting() {
         this.leave(room)
         if(!io.sockets.adapter.rooms[room]){
             delete gameRooms[room]
+            delete waitingForRematch[room]
         }
     }
+    console.log("After disc.:",activeSocketIDs,gameRooms,waitingForRematch)
 }
 
 function requestRematch(data){
