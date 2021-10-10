@@ -44,7 +44,6 @@ function createNewGame(data) {
 }
 
 function playerJoinsGame(data){
-    console.log(`Player ${this.id} joins with `, data)
     var gameRoom = io.sockets.adapter.rooms[data.gameID]
 
     if(gameRoom=== undefined){
@@ -90,7 +89,6 @@ function onDisconnecting() {
             delete waitingForRematch[room]
         }
     }
-    console.log("After disc.:",activeSocketIDs,gameRooms,waitingForRematch)
 }
 
 function requestRematch(data){
